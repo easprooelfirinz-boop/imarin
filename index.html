@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Game OTAX X CATUR</title>
+    <link class="jsbin" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #0f141d; 
+            color: #fff; 
+            font-family: sans-serif;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Canvas Latar Belakang Animasi DNA */
+        #dnaBackground {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .game-container { max-width: 600px; margin: auto; padding: 15px; display: none; position: relative; z-index: 2; }
+        #myBoard { width: 100%; max-width: 450px; margin: auto; border: 4px solid #333; border-radius: 5px; position: relative; }
+        .status-box { background: rgba(42, 42, 42, 0.85); backdrop-filter: blur(5px); border-radius: 8px; padding: 12px; margin-top: 15px; }
+        .timer { font-size: 1.5rem; font-weight: bold; font-family: monospace; color: #ffc107; }
+        
+        /* Highlight & Efek Titik (Dot Indicator) */
+        .highlight-hint { 
+            position: relative; 
+        }
+        .highlight-hint::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background-color: rgba(255, 193, 7, 0.7); 
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 5;
+            box-shadow: 0 0 8px rgba(255, 193, 7, 0.9);
+        }
+        
+        #knightOverlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+        }
+
+        /* Gaya Layar Beranda (Splash Screen) */
+        .welcome-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(44, 62, 80, 0.5), rgba(15, 23, 30, 0.9));
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; z-index: 9999; padding: 20px; text-align: center;
+        }
+        .chess-icon { font-size: 80px; margin-bottom: 10px; animation: bounce 2s infinite; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .setup-panel { max-width: 340px; width: 100%; display: none; }
+        
+        .bg-dark { background-color: rgba(33, 37, 41, 0.85) !important; backdrop-filter: blur(5px); }
+
+        /* Gaya Watermark di Bagian Bawah */
+        .watermark-footer {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: monospace;
+            text-align: center;
+            line-height: 1.4;
+            letter-spacing: 0.5px;
+            z-index: 10;
+            width: 100%;
+            pointer-events: auto;
+        }
+        .watermark-footer a {
+            color: rgba(255, 193, 7, 0.6);
+            text-decoration: none;
+        }
+        .watermark-footer a:hover {
+            color: rgba(255, 193, 7, 0.9);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="dnaBackground"></canvas>
+
+<div id="welcomeScreen" class="welcome-screen">
+    <div id="startPhase" class="w-100 text-center">
+        <div class="chess-icon">♟️🧠</div>
+        <h1 class="fw-bold mb-4">OTAX CATUR</h1>
+        
+        <button class="btn btn-warning btn-lg px-5 fw-bold shadow mb-3" onclick="goToSetup()">LANJUT</button>
+        
+        <div class="mt-2">
+            <a href="https://saweria.co/idex" target="_blank" class="btn btn-sm btn-danger px-4 fw-bold shadow-sm" style="background-color: #fa5252; border: none;">
+                ☕ Dukung via Saweria
+            </a>
+        </div>
+    </div>
+
+    <div id="setupPhase" class="setup-panel text-start">
+        <h4 class="text-center mb-4 text-warning fw-bold">⚙️ PENGATURAN GAME</h4>
+        
+        <div class="mb-3">
+            <label class="form-label fw-bold">⏱️ Pilih Waktu:</label>
+            <select id="selectTime" class="form-select bg-dark text-white border-secondary">
+                <option value="180">3 Menit</option>
+                <option value="300" selected>5 Menit</option>
+                <option value="600">10 Menit</option>
+                <option value="900">15 Menit</option>
+                <option value="1200">20 Menit</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">🧠 Pilih Tingkat Kesulitan:</label>
+            <select id="selectLevel" class="form-select bg-dark text-white border-secondary">
+                <option value="easy" selected>EASY (Anak Umur 2-6 Tahun)</option>
+                <option value="normal">NORMAL (Anak Umur 7-13 Tahun)</option>
+                <option value="hard">HARD (Cocok Untuk Legenda)</option>
+            </select>
+        </div>
+
+        <button class="btn btn-success btn-lg w-100 fw-bold shadow" onclick="startGame()">MULAI BERMAIN ⚔️</button>
+    </div>
+
+    <div class="watermark-footer">
+        creator: <a href="https://t.me/im_gokil" target="_blank">t.me/im_gokil</a><br>
+        support: <a href="https://saweria.co/idex" target="_blank">https://saweria.co/idex</a>
+    </div>
+</div>
+
+<div id="gameContainer" class="game-container text-center">
+    <h4 class="my-2">♟️ Pertandingan Dimulai</h4>
+    
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <div class="bg-dark p-2 rounded">
+                <div>Kamu (<span id="player-side-text">Putih</span>):</div>
+                <div id="player-timer" class="timer">05:00</div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="bg-dark p-2 rounded">
+                <div>AI (<span id="ai-side-text">Hitam</span>):</div>
+                <div id="ai-timer" class="timer">05:00</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="myBoard" class="mb-3">
+        <canvas id="knightOverlay"></canvas>
+    </div>
+
+    <div class="status-box text-start">
+        <h5>📊 Statistik & Info Game</h5>
+        <hr class="my-2" style="border-color: #444;">
+        <p class="mb-1"><strong>Status:</strong> <span id="status" class="text-info">-</span></p>
+        <p class="mb-1"><strong>Level AI:</strong> <span id="active-level" class="text-success text-uppercase fw-bold">-</span></p>
+        <p class="mb-0"><strong>Riwayat Langkah:</strong> <span id="pgn" style="font-size: 0.9rem; color: #aaa;">-</span></p>
+    </div>
+    
+    <button class="btn btn-danger mt-3 w-100" onclick="backToMenu()">Keluar ke Menu Utama</button>
+</div>
+
+<div class="modal fade" id="promotionModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content bg-dark text-white text-center">
+            <div class="modal-header border-0 justify-content-center">
+                <h5 class="modal-title">Promosi Pion!</h5>
+            </div>
+            <div class="modal-body">
+                <p>Pilih buah pengganti:</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-warning" onclick="selectPromotion('q')">👑 Ratu (Queen)</button>
+                    <button class="btn btn-primary" onclick="selectPromotion('r')">🏰 Benteng (Rook)</button>
+                    <button class="btn btn-success" onclick="selectPromotion('b')">🧝 Gajah (Bishop)</button>
+                    <button class="btn btn-info" onclick="selectPromotion('n')">🐴 Kuda (Knight)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// --- KONFIGURASI GLOBAL ---
+let board = null;
+let game = new Chess();
+let difficulty = 'easy';
+let initialSeconds = 300;
+let playerTime = 300;
+let aiTime = 300;
+let timerInterval = null;
+
+let playerColor = 'w'; 
+let aiColor = 'b';
+let promotionMove = null;
+let isAiThinking = false;
+
+const pieceValues = { p: 1, n: 3.25, b: 3.25, r: 5, q: 9, k: 1000 };
+
+// ================= ENGINE ANIMASI BACKGROUND DNA =================
+const bgCanvas = document.getElementById('dnaBackground');
+const bgCtx = bgCanvas.getContext('2d');
+let dnaStrands = [];
+
+function resizeBgCanvas() {
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeBgCanvas);
+resizeBgCanvas();
+
+function createDnaStrand() {
+    return {
+        x: Math.random() * bgCanvas.width,
+        y: bgCanvas.height + 50,
+        speed: Math.random() * 0.5 + 0.3,
+        amplitude: Math.random() * 30 + 20,
+        frequency: Math.random() * 0.02 + 0.01,
+        angle: Math.random() * Math.PI,
+        size: Math.random() * 3 + 2,
+        length: Math.floor(Math.random() * 15 + 10),
+        brokenNodes: []
+    };
+}
+
+for (let i = 0; i < 8; i++) {
+    let strand = createDnaStrand();
+    strand.y = Math.random() * bgCanvas.height;
+    dnaStrands.push(strand);
+}
+
+function animateDNA() {
+    bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    
+    if (dnaStrands.length < 12 && Math.random() < 0.02) {
+        dnaStrands.push(createDnaStrand());
+    }
+
+    for (let s = dnaStrands.length - 1; s >= 0; s--) {
+        let strand = dnaStrands[s];
+        strand.y -= strand.speed;
+        strand.angle += 0.02;
+
+        if (Math.random() < 0.005 && strand.brokenNodes.length < strand.length) {
+            let randomNode = Math.floor(Math.random() * strand.length);
+            if (!strand.brokenNodes.includes(randomNode)) {
+                strand.brokenNodes.push(randomNode);
+            }
+        }
+
+        for (let i = 0; i < strand.length; i++) {
+            let nodeY = strand.y + (i * 22);
+            let waveOffset = Math.sin(strand.angle + (i * strand.frequency * 10)) * strand.amplitude;
+            
+            let nodeX1 = strand.x + waveOffset;
+            let nodeX2 = strand.x - waveOffset;
+
+            if (!strand.brokenNodes.includes(i)) {
+                bgCtx.beginPath();
+                bgCtx.strokeStyle = 'rgba(0, 180, 216, 0.15)';
+                bgCtx.lineWidth = 1;
+                bgCtx.moveTo(nodeX1, nodeY);
+                bgCtx.lineTo(nodeX2, nodeY);
+                bgCtx.stroke();
+            }
+
+            bgCtx.beginPath();
+            bgCtx.fillStyle = 'rgba(0, 230, 118, 0.4)';
+            bgCtx.arc(nodeX1, nodeY, strand.size, 0, Math.PI * 2);
+            bgCtx.fill();
+
+            bgCtx.beginPath();
+            bgCtx.fillStyle = 'rgba(0, 180, 216, 0.4)';
+            bgCtx.arc(nodeX2, nodeY, strand.size, 0, Math.PI * 2);
+            bgCtx.fill();
+        }
+
+        if (strand.y + (strand.length * 22) < 0) {
+            dnaStrands.splice(s, 1);
+        }
+    }
+
+    requestAnimationFrame(animateDNA);
+}
+animateDNA();
+
+// --- NAVIGASI LAYAR TAMPILAN ---
+function goToSetup() {
+    $('#startPhase').fadeOut(300, function() {
+        $('#setupPhase').fadeIn(300);
+    });
+}
+
+function startGame() {
+    difficulty = $('#selectLevel').val();
+    initialSeconds = parseInt($('#selectTime').val());
+    playerTime = initialSeconds;
+    aiTime = initialSeconds;
+    isAiThinking = false;
+
+    playerColor = Math.random() < 0.5 ? 'w' : 'b';
+    aiColor = playerColor === 'w' ? 'b' : 'w';
+
+    if (playerColor === 'w') {
+        $('#player-side-text').text('Putih').css('color', '#fff');
+        $('#ai-side-text').text('Hitam').css('color', '#aaa');
+    } else {
+        $('#player-side-text').text('Hitam').css('color', '#aaa');
+        $('#ai-side-text').text('Putih').css('color', '#fff');
+    }
+
+    let displayLvlText = difficulty;
+    if(difficulty === 'easy') {
+        displayLvlText = "EASY (Anak Umur 2-6 Tahun)";
+        $('#active-level').attr('class', 'text-success text-uppercase fw-bold');
+    }
+    if(difficulty === 'normal') {
+        displayLvlText = "NORMAL (Anak Umur 7-13 Tahun)";
+        $('#active-level').attr('class', 'text-warning text-uppercase fw-bold');
+    }
+    if(difficulty === 'hard') {
+        displayLvlText = "HARD (Cocok Untuk Legenda)";
+        $('#active-level').attr('class', 'text-danger text-uppercase fw-bold');
+    }
+    $('#active-level').text(displayLvlText);
+
+    $('#player-timer').text(formatTime(playerTime));
+    $('#ai-timer').text(formatTime(aiTime));
+
+    $('#welcomeScreen').fadeOut(400, function() {
+        $('#gameContainer').fadeIn(400);
+        
+        game.reset();
+        
+        const config = {
+            draggable: true,
+            position: 'start',
+            orientation: playerColor === 'w' ? 'white' : 'black',
+            onDragStart: onDragStart,
+            onDrop: onDrop,
+            onMouseoverSquare: onMouseoverSquare,
+            onMouseoutSquare: onMouseoutSquare,
+            onSnapEnd: onSnapEnd,
+            pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+        };
+        
+        board = Chessboard('myBoard', config);
+        setTimeout(resizeOverlayCanvas, 200);
+        updateStatus();
+        startTimer();
+
+        if (aiColor === 'w') {
+            makeAIMove();
+        }
+    });
+}
+
+function backToMenu() {
+    clearInterval(timerInterval);
+    clearKnightLines();
+    isAiThinking = false;
+    $('#gameContainer').fadeOut(400, function() {
+        $('#startPhase').show();
+        $('#setupPhase').hide();
+        $('#welcomeScreen').fadeIn(400);
+    });
+}
+
+// --- ARTIFICIAL INTELLIGENCE (AI) ---
+function makeAIMove() {
+    if (game.game_over()) return;
+
+    isAiThinking = true;
+    updateStatus();
+
+    setTimeout(() => {
+        let depth = difficulty === 'easy' ? 1 : (difficulty === 'normal' ? 2 : 3);
+        let move = minimaxRoot(depth, game, true);
+        if (move) {
+            game.move(move);
+            board.position(game.fen());
+        }
+        isAiThinking = false;
+        updateStatus();
+    }, 3000);
+}
+
+function minimaxRoot(depth, game, isMaximisingPlayer) {
+    let newGameMoves = game.moves({ verbose: true });
+    
+    if (difficulty === 'easy' && Math.random() < 0.75) {
+        return newGameMoves[Math.floor(Math.random() * newGameMoves.length)];
+    }
+
+    let bestMove = -9999;
+    let bestMoveFound;
+
+    for (let i = 0; i < newGameMoves.length; i++) {
+        let move = newGameMoves[i];
+        game.move(move);
+        let value = minimax(depth - 1, game, -10000, 10000, !isMaximisingPlayer);
+        game.undo();
+        if (value >= bestMove) {
+            bestMove = value;
+            bestMoveFound = move;
+        }
+    }
+    return bestMoveFound;
+}
+
+function minimax(depth, game, alpha, beta, isMaximisingPlayer) {
+    if (depth === 0) return -evaluateBoard(game.board());
+
+    let newGameMoves = game.moves();
+    if (isMaximisingPlayer) {
+        let bestMove = -9999;
+        for (let i = 0; i < newGameMoves.length; i++) {
+            game.move(newGameMoves[i]);
+            bestMove = Math.max(bestMove, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer));
+            game.undo();
+            alpha = Math.max(alpha, bestMove);
+            if (beta <= alpha) return bestMove;
+        }
+        return bestMove;
+    } else {
+        let bestMove = 9999;
+        for (let i = 0; i < newGameMoves.length; i++) {
+            game.move(newGameMoves[i]);
+            bestMove = Math.min(bestMove, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer));
+            game.undo();
+            beta = Math.min(beta, bestMove);
+            if (beta <= alpha) return bestMove;
+        }
+        return bestMove;
+    }
+}
+
+// --- EVALUASI BOARD ---
+function evaluateBoard(board) {
+    let totalEvaluation = 0;
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            totalEvaluation += getPieceValue(board[i][j], i, j);
+        }
+    }
+    return totalEvaluation;
+}
+
+function getPieceValue(piece, x, y) {
+    if (piece === null) return 0;
+    let absoluteValue = pieceValues[piece.type];
+    
+    if (piece.type === 'p') {
+        if ((x === 3 || x === 4) && (y === 3 || y === 4)) absoluteValue += 0.5;
+    } else if (piece.type === 'n' || piece.type === 'b') {
+        if (x >= 2 && x <= 5 && y >= 2 && y <= 5) absoluteValue += 0.3;
+    }
+    return piece.color === playerColor ? absoluteValue : -absoluteValue;
+}
+
+// --- ATURAN GAME & PETUNJUK ---
+function onDragStart(source, piece, position, orientation) {
+    if (game.game_over() || game.turn() !== playerColor || isAiThinking) {
+        return false;
+    }
+    if (piece.search(new RegExp('^' + aiColor)) !== -1) return false;
+    
+    showPossibleMoves(source, piece);
+}
+
+function onMouseoverSquare(square, piece) {
+    if (game.turn() !== playerColor || isAiThinking) return;
+    showPossibleMoves(square, piece);
+}
+
+function showPossibleMoves(square, piece) {
+    let moves = game.moves({ square: square, verbose: true });
+    if (moves.length === 0) return;
+
+    for (let i = 0; i < moves.length; i++) {
+        highlightSquare(moves[i].to);
+    }
+
+    if (piece && piece.charAt(1).toLowerCase() === 'n') {
+        drawKnightLines(square, moves);
+    }
+}
+
+function onMouseoutSquare(square, piece) {
+    $('#myBoard .square-55d63').removeClass('highlight-hint');
+    clearKnightLines();
+}
+
+function highlightSquare(square) {
+    $('#myBoard .square-' + square).addClass('highlight-hint');
+}
+
+function drawKnightLines(fromSquare, moves) {
+    const canvas = document.getElementById('knightOverlay');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    clearKnightLines();
+
+    const fromEl = $('#myBoard .square-' + fromSquare);
+    if (!fromEl.length) return;
+
+    const boardPos = $('#myBoard').offset();
+    const fromOffset = fromEl.offset();
+    const size = fromEl.width();
+    
+    const startX = fromOffset.left - boardPos.left + (size / 2);
+    const startY = fromOffset.top - boardPos.top + (size / 2);
+
+    moves.forEach(m => {
+        const toEl = $('#myBoard .square-' + m.to);
+        if (!toEl.length) return;
+        
+        const toOffset = toEl.offset();
+        const endX = toOffset.left - boardPos.left + (size / 2);
+        const endY = toOffset.top - boardPos.top + (size / 2);
+
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 193, 7, 0.8)'; 
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.setLineDash([6, 4]); 
+
+        ctx.moveTo(startX, startY);
+        if (Math.abs(endX - startX) > Math.abs(endY - startY)) {
+            ctx.lineTo(endX, startY); 
+        } else {
+            ctx.lineTo(startX, endY); 
+        }
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+    });
+}
+
+function clearKnightLines() {
+    const canvas = document.getElementById('knightOverlay');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function resizeOverlayCanvas() {
+    const canvas = document.getElementById('knightOverlay');
+    const boardEl = $('#myBoard');
+    if (canvas && boardEl.length) {
+        canvas.width = boardEl.width();
+        canvas.height = boardEl.height();
+    }
+}
+
+$(window).on('resize', resizeOverlayCanvas);
+
+function onDrop(source, target) {
+    onMouseoutSquare();
+
+    if (isAiThinking) return 'snapback';
+
+    let moves = game.moves({ verbose: true });
+    let isPromotion = moves.some(m => m.from === source && m.to === target && m.flags.includes('p'));
+
+    if (isPromotion) {
+        promotionMove = { from: source, to: target };
+        let promotionModal = new bootstrap.Modal(document.getElementById('promotionModal'));
+        promotionModal.show();
+        return 'snapback';
+    }
+
+    let move = game.move({ from: source, to: target });
+    if (move === null) return 'snapback';
+
+    updateStatus();
+    if (!game.game_over()) makeAIMove();
+}
+
+function selectPromotion(pieceType) {
+    if (promotionMove) {
+        game.move({ from: promotionMove.from, to: promotionMove.to, promotion: pieceType });
+        board.position(game.fen());
+        bootstrap.Modal.getInstance(document.getElementById('promotionModal')).hide();
+        promotionMove = null;
+        updateStatus();
+        if (!game.game_over()) makeAIMove();
+    }
+}
+
+function onSnapEnd() {
+    board.position(game.fen());
+}
+
+function updateStatus() {
+    let statusHTML = '';
+    let currentTurn = game.turn();
+
+    if (game.in_checkmate()) {
+        statusHTML = `<strong>GAME OVER!</strong> Sisi ${currentTurn === 'w' ? 'Putih' : 'Hitam'} Kalah Terkena <span class="text-danger">SKAKMAT</span>.`;
+    } else if (game.in_draw()) {
+        statusHTML = '<strong>GAME OVER!</strong> Pertandingan berakhir <span class="text-warning">SERI (Draw)</span>';
+    } else {
+        if (isAiThinking) {
+            statusHTML = '🤖 <span class="text-warning fw-bold">AI sedang berpikir... (Menunggu 3 Detik)</span>';
+        } else if (currentTurn === playerColor) {
+            statusHTML = '👤 <span class="text-success fw-bold">Giliran Kamu Jalan!</span>';
+        } else {
+            statusHTML = '🤖 <span class="text-warning fw-bold">AI Bersiap Melangkah...</span>';
+        }
+        
+        if (game.in_check()) {
+            statusHTML += ' <span class="badge bg-danger ms-2">AWAS SKAK!</span>';
+        }
+    }
+
+    $('#status').html(statusHTML);
+    $('#pgn').text(game.pgn() || '-');
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (game.game_over()) {
+            clearInterval(timerInterval);
+            return;
+        }
+
+        if (game.turn() === playerColor) {
+            if (playerTime > 0) {
+                playerTime--;
+                $('#player-timer').text(formatTime(playerTime));
+            } else {
+                clearInterval(timerInterval);
+                alert("Waktu Kamu Habis! AI Menang.");
+            }
+        } else {
+            if (aiTime > 0) {
+                aiTime--;
+                $('#ai-timer').text(formatTime(aiTime));
+            } else {
+                clearInterval(timerInterval);
+                alert("Waktu AI Habis! Kamu Menang.");
+            }
+        }
+    }, 1000);
+}
+
+function formatTime(seconds) {
+    let min = Math.floor(seconds / 60);
+    let sec = seconds % 60;
+    return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+}
+</script>
+</body>
+</html>
